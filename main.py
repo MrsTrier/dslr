@@ -142,14 +142,46 @@ def scatter_plot():
 def pair_plot():
     fig = px.scatter_matrix(df, dimensions=df.iloc[:, 5:-1], color="Hogwarts House")
     fig.show()
-    ### Не брать 
+    ### Не брать
 
 
-if __name__ == '__main__':
-    df = pd.read_csv(sys.argv[1], index_col='Index')
+# def logreg_predict():
+#
+#
+
+
+def write_into_file(theta_value_file, name, value):
+    try:
+        theta_value_file.write('{}={}\n'.format(name, value))
+    except Exception:
+        print("Error: something went wrong while writing into file.")
+
+
+def logreg_train(argv):
+    df = prepare_df(argv)
+    i = 0
+    epoch = 100
+    while i < epoch:
+        errors_sum = 0
+        for row in df.iterrows():
+            errors_sum +=
+        i += 1
+    theta_value_file = open('theta_value_file', 'w')
+    write_into_file(theta_value_file, "", "")
+    theta_value_file.close()
+
+
+def prepare_df(argv):
+    df = pd.read_csv(argv, index_col='Index')
     df.dropna(inplace=True)
     df.reset_index(drop=True, inplace=True)
+    return df
+
+if __name__ == '__main__':
+    # prepare_df(sys.argv[1])
     # home_made_describe(df)
     # plot_histogram()
     # scatter_plot()
-    pair_plot()
+    # pair_plot()
+    logreg_train(sys.argv[1])
+    logreg_predict()
