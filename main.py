@@ -129,7 +129,7 @@ def scatter_plot():
         "Ravenclaw": '#6B7D28'
     }
     prev_course = df.columns[5]
-    for course in df.iloc[ : , 6:-1]:
+    for course in df.iloc[ : , 6:]:
         fig = px.scatter(df, x=course, y=prev_course, color="Hogwarts House")
         fig.update_traces(marker=dict(size=7,
                                       line=dict(width=0.2,
@@ -146,9 +146,16 @@ def pair_plot():
 
 
 # def logreg_predict():
-#
-#
-
+#     try:
+#         with open('theta_value_file', 'r') as f:
+#             value = f.readlines()
+#             index = value[0].index('=')
+#             theta0 = value[0][index + 1:]
+#             theta1 = value[1][index + 1:]
+#     except Exception as e:
+#         print("Error: please run ft_linear_regression.py before")
+#         print("{}".format(e))
+#         exit(0)
 
 def write_into_file(theta_value_file, name, value):
     try:
@@ -157,31 +164,71 @@ def write_into_file(theta_value_file, name, value):
         print("Error: something went wrong while writing into file.")
 
 
-def logreg_train(argv):
-    df = prepare_df(argv)
+def get_df_hufflepuff():
+    df_for_house = df.loc[df["Hogwarts House"] == "Hufflepuff"]
+    df_for_house.reset_index(drop=True, inplace=True)
+    df_for_house.loc[df_for_house['Hogwarts House'] == "Hufflepuff", 'Hogwarts House'] = 1
+    df_for_house.loc[df_for_house['Hogwarts House'] != "Hufflepuff", 'Hogwarts House'] = 0
+    return df_for_house
+    # print(df_for_house.head())
+
+
+def update_coeffs(data, coeffs):
+    coeffs[0] = coeffs[0] - learning_rate * pow(data['errors'], 2).sum() / len(data)
+
+def calculate_error(data, coeffs):
+    c = 1
+    for i in range(len(data)):
+        z = 0
+        for colmn in data.iloc[:, 1:]:
+            z += data.loc[i, colmn] * coeffs[c]
+            c += 1
+        data[i, 'estimated_y'] = 1/(1 - np.exp(z + coeffs[0]))
+        data[i, 'error'] = data[i, 'Hogwarts House'] - data[i, 'estimated_y']
+
+
+def logreg_train():
+    # df = prepare_df(argv)
     i = 0
-    epoch = 100
+    learning_rate = 0
+    epoch = 2
+    hufflepuff_coeffs = [0, 0, 0, 0, 0, 0]
     while i < epoch:
         errors_sum = 0
+        df_hufflepuff = get_df_hufflepuff()
+        update_coeffs(df_hufflepuff, hufflepuff_coeffs)
+        calculate_error(df_hufflepuff, hufflepuff_coeffs)
         for row in df.iterrows():
-            errors_sum +=
+
+            print()
+            # errors_sum += calculate_error(y, y_head)
         i += 1
     theta_value_file = open('theta_value_file', 'w')
     write_into_file(theta_value_file, "", "")
     theta_value_file.close()
 
 
-def prepare_df(argv):
-    df = pd.read_csv(argv, index_col='Index')
-    df.dropna(inplace=True)
-    df.reset_index(drop=True, inplace=True)
-    return df
+# def prepare_df(argv):
+#     df = pd.read_csv(argv, index_col='Index')
+#     df.dropna(inplace=True)
+#     df.reset_index(drop=True, inplace=True)
+#     return df
 
 if __name__ == '__main__':
-    # prepare_df(sys.argv[1])
+    df = pd.read_csv(sys.argv[1], index_col='Index')
+    df.dropna(inplace=True)
+    df.reset_index(drop=True, inplace=True)
     # home_made_describe(df)
     # plot_histogram()
     # scatter_plot()
     # pair_plot()
-    logreg_train(sys.argv[1])
-    logreg_predict()
+    df = df[["Hogwarts House", "Divination", "Ancient Runes", "Herbology", "Charms", "Transfiguration"]]
+    print(df.head())
+
+    for colmn in df.iloc[:, 1:]:
+        df[colmn] = df[colmn] / max(df[colmn])
+
+    # df['Divination'] = df['Divination'] / max(df['Divination'])
+    # print(df.head())
+    logreg_train()
+    # logreg_predict()
