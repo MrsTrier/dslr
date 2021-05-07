@@ -8,6 +8,37 @@ import numpy as np
 import pandas as pd
 import sys
 
+my_colors = {
+    "Hufflepuff": '#dccbf2',
+    "Slytherin": '#EDBAB7',
+    "Gryffindor": '#CF8867',
+    "Ravenclaw": '#6B7D28'
+}
+
+
+class Model:
+    X = []
+    Y = []
+    learning_rate = 0.00001
+    thetas_path = []
+    loses = {
+        "Hufflepuff": 10,
+        "Slytherin": 10,
+        "Gryffindor": 10,
+        "Ravenclaw": 10
+    }
+    coeffs = {
+        "Hufflepuff": [0, 0, 0, 0, 0, 0],
+        "Slytherin": [0, 0, 0, 0, 0, 0],
+        "Gryffindor": [0, 0, 0, 0, 0, 0],
+        "Ravenclaw": [0, 0, 0, 0, 0, 0]
+    }
+    estimated_Y = []
+
+
+    def print_coefficients(self):
+        print(f'Theta1: { round(self.theta1, 3) }')
+        print(f'Theta0: { round(self.theta0, 3) }')
 
 def home_made_mean(feature_values):
     count = 0
@@ -99,12 +130,6 @@ def print_table(description_parametrs, key):
 
 def plot_histogram():
     house_list = df['Hogwarts House'].unique()
-    my_colors = {
-        "Hufflepuff": '#dccbf2',
-        "Slytherin": '#EDBAB7',
-        "Gryffindor": '#CF8867',
-        "Ravenclaw": '#6B7D28'
-    }
     for course in df.iloc[ : , 5:-1]:
         fig = go.Figure()
         for house in house_list:
@@ -122,12 +147,6 @@ def plot_histogram():
 
 
 def scatter_plot():
-    my_colors = {
-        "Hufflepuff": '#dccbf2',
-        "Slytherin": '#EDBAB7',
-        "Gryffindor": '#CF8867',
-        "Ravenclaw": '#6B7D28'
-    }
     prev_course = df.columns[5]
     for course in df.iloc[ : , 6:]:
         fig = px.scatter(df, x=course, y=prev_course, color="Hogwarts House")
@@ -142,8 +161,6 @@ def scatter_plot():
 def pair_plot():
     fig = px.scatter_matrix(df, dimensions=df.iloc[:, 5:-1], color="Hogwarts House")
     fig.show()
-    ### Не брать
-
 
 # def logreg_predict():
 #     try:
@@ -157,6 +174,7 @@ def pair_plot():
 #         print("{}".format(e))
 #         exit(0)
 
+
 def write_into_file(theta_value_file, name, value):
     try:
         theta_value_file.write('{}={}\n'.format(name, value))
@@ -164,55 +182,59 @@ def write_into_file(theta_value_file, name, value):
         print("Error: something went wrong while writing into file.")
 
 
-def get_df_hufflepuff():
-    df_for_house = df.loc[df["Hogwarts House"] == "Hufflepuff"]
-    df_for_house.reset_index(drop=True, inplace=True)
-    df_for_house.loc[df_for_house['Hogwarts House'] == "Hufflepuff", 'Hogwarts House'] = 1
-    df_for_house.loc[df_for_house['Hogwarts House'] != "Hufflepuff", 'Hogwarts House'] = 0
+def get_df_hufflepuff(faculty):
+    df_for_house = df.copy()
+    df_for_house['Hogwarts House'] = np.where(df_for_house['Hogwarts House'] == faculty, 1, 0)
     return df_for_house
-    # print(df_for_house.head())
 
 
-def update_coeffs(data, coeffs):
-    coeffs[0] = coeffs[0] - learning_rate * pow(data['errors'], 2).sum() / len(data)
+def update_coeffs(data, model, faculty):
+    for index, coeff in enumerate(model.coeffs[faculty]):
+        # print(model.coeffs[faculty][index])
+        model.coeffs[faculty][index] = coeff - model.learning_rate * ((data['error'] * data.iloc[:, index + 1]).sum() / len(data))
+        # print(model.coeffs[faculty][index])
+        # print("faculty {},  index {},  value {}".format(faculty, index, model.coeffs[faculty][index]))
 
-def calculate_error(data, coeffs):
-    c = 1
-    for i in range(len(data)):
+
+def calculate_error(data, model, faculty):
+    data['estimated_y'] = np.NaN
+    data['enthropy'] = np.NaN
+    for i in range(data.shape[0]):
         z = 0
-        for colmn in data.iloc[:, 1:]:
-            z += data.loc[i, colmn] * coeffs[c]
+        c = 0
+        for col in data.iloc[:, 1:7]:
+            z += data.loc[i, col] * model.coeffs[faculty][c]
             c += 1
-        data[i, 'estimated_y'] = 1/(1 - np.exp(z + coeffs[0]))
-        data[i, 'error'] = data[i, 'Hogwarts House'] - data[i, 'estimated_y']
+        data.at[i, 'estimated_y'] = 1/(1 + np.exp(-z))
+    data['error'] = data['estimated_y'] - data['Hogwarts House']
+    data['enthropy'] = data['Hogwarts House'] * np.log(data['estimated_y']) + (data['Constant'] - data['Hogwarts House']) * np.log(data['Constant'] - data['estimated_y'])
 
 
 def logreg_train():
-    # df = prepare_df(argv)
+    model = Model()
     i = 0
-    learning_rate = 0
-    epoch = 2
-    hufflepuff_coeffs = [0, 0, 0, 0, 0, 0]
-    while i < epoch:
-        errors_sum = 0
-        df_hufflepuff = get_df_hufflepuff()
-        update_coeffs(df_hufflepuff, hufflepuff_coeffs)
-        calculate_error(df_hufflepuff, hufflepuff_coeffs)
-        for row in df.iterrows():
-
-            print()
-            # errors_sum += calculate_error(y, y_head)
-        i += 1
+    list_of_faculties = df['Hogwarts House'].unique()
+    while list_of_faculties.any():
+        for indx, faculty in enumerate(list_of_faculties):
+            df_for_faculty = get_df_hufflepuff(faculty)
+            # print(df_for_faculty.head())
+            calculate_error(df_for_faculty, model, faculty)
+            # print(df_for_faculty.head())
+            enthropy = - df_for_faculty['enthropy'].sum() / len(df_for_faculty)
+            # print(model.loses[faculty])
+            if abs(model.loses[faculty] - enthropy) < 0.01:
+                list_of_faculties = np.delete(list_of_faculties, indx)
+                print("{}\n{}".format(faculty, enthropy))
+                print(model.coeffs[faculty])
+                break
+            model.loses[faculty] = enthropy
+            update_coeffs(df_for_faculty, model, faculty)
+            i += 1
+    print(i)
     theta_value_file = open('theta_value_file', 'w')
     write_into_file(theta_value_file, "", "")
     theta_value_file.close()
 
-
-# def prepare_df(argv):
-#     df = pd.read_csv(argv, index_col='Index')
-#     df.dropna(inplace=True)
-#     df.reset_index(drop=True, inplace=True)
-#     return df
 
 if __name__ == '__main__':
     df = pd.read_csv(sys.argv[1], index_col='Index')
@@ -223,12 +245,13 @@ if __name__ == '__main__':
     # scatter_plot()
     # pair_plot()
     df = df[["Hogwarts House", "Divination", "Ancient Runes", "Herbology", "Charms", "Transfiguration"]]
+    df['Constant'] = 1
+    df.insert(df.columns.get_loc("Hogwarts House") + 1, "Constant", df.pop("Constant"))
+
     print(df.head())
 
-    for colmn in df.iloc[:, 1:]:
-        df[colmn] = df[colmn] / max(df[colmn])
+    # for colmn in df.iloc[:, 1:]:
+    #     df[colmn] = df[colmn] / max(df[colmn])
 
-    # df['Divination'] = df['Divination'] / max(df['Divination'])
-    # print(df.head())
     logreg_train()
     # logreg_predict()
