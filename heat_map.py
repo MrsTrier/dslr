@@ -1,11 +1,7 @@
-import plotly.express as px
-import pandas as pd
 import sys
-
-
-def scatter_plot():
-    fig = px.scatter(df, x=df['Astronomy'], y=df['Defense Against the Dark Arts'], color="Hogwarts House")
-    fig.show()
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
@@ -23,4 +19,6 @@ if __name__ == '__main__':
         df = pd.read_csv(sys.argv[1], index_col='Index')
     df.dropna(inplace=True)
     df.reset_index(drop=True, inplace=True)
-    scatter_plot()
+    sns.heatmap(df.corr(), annot = True, fmt='.1g')
+    plt.show()
+

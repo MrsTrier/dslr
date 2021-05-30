@@ -1,19 +1,24 @@
-import  plotly.graph_objects as go
 import describe
 import numpy as np
 import pandas as pd
 import sys
+import plotly.express as px
+import  plotly.graph_objects as go
+
 
 class Model:
-    X = []
-    Y = []
-    learning_rate = 0.01
-    thetas_path = []
+    learning_rate = 0.07
     loses = {
         "Hufflepuff": 10,
         "Slytherin": 10,
         "Gryffindor": 10,
         "Ravenclaw": 10
+    }
+    loses_path = {
+        "Hufflepuff": [],
+        "Slytherin": [],
+        "Gryffindor": [],
+        "Ravenclaw": []
     }
     coeffs = {
         "Hufflepuff": [0, 0, 0, 0, 0, 0],
@@ -21,11 +26,12 @@ class Model:
         "Gryffindor": [0, 0, 0, 0, 0, 0],
         "Ravenclaw": [0, 0, 0, 0, 0, 0]
     }
-
-
-    def print_coefficients(self):
-        print(f'Theta1: { round(self.theta1, 3) }')
-        print(f'Theta0: { round(self.theta0, 3) }')
+    coeffs_path = {
+        "Hufflepuff": {"Constant":[], "Divination": [], "Ancient Runes": [], "Herbology": [], "Charms": [], "Transfiguration": []},
+        "Slytherin": {"Constant":[], "Divination": [], "Ancient Runes": [], "Herbology": [], "Charms": [], "Transfiguration": []},
+        "Gryffindor": {"Constant":[], "Divination": [], "Ancient Runes": [], "Herbology": [], "Charms": [], "Transfiguration": []},
+        "Ravenclaw": {"Constant":[], "Divination": [], "Ancient Runes": [], "Herbology": [], "Charms": [], "Transfiguration": []}
+    }
 
 
 def write_into_file(theta_value_file, values, df):
@@ -47,6 +53,8 @@ def get_df_for_faculty(faculty):
 def update_coeffs(data, model, faculty):
     for index, coeff in enumerate(model.coeffs[faculty]):
         model.coeffs[faculty][index] = coeff - model.learning_rate * ((data['error'] * data.iloc[:, index + 1]).sum() / len(data))
+        name = data.iloc[:, index + 1].name
+        model.coeffs_path[faculty][name].append(model.coeffs[faculty][index])
 
 
 def calculate_error(data, model, faculty):
@@ -70,10 +78,8 @@ def stardandaze(course):
 
 def logreg_train():
     model = Model()
-    i = 0
     for col in df.iloc[:, 2:7]:
         df[col] = stardandaze(df[col])
-    print(df.head())
     list_of_faculties = df['Hogwarts House'].unique()
     theta_value_file = open('theta_values_file', 'w')
     for indx, faculty in enumerate(list_of_faculties):
@@ -86,11 +92,30 @@ def logreg_train():
             update_coeffs(df_for_faculty, model, faculty)
             calculate_error(df_for_faculty, model, faculty)
             enthropy = - df_for_faculty['enthropy'].sum() / len(df_for_faculty)
+            model.loses_path[faculty].append(enthropy)
             ep += 1
         theta_value_file.write('{}\n'.format(faculty))
         write_into_file(theta_value_file, model.coeffs[faculty], df)
     theta_value_file.close()
     return model
+
+
+def plot_enthropy():
+    for indx, faculty in enumerate(df['Hogwarts House'].unique()):
+        x = [x + 1 for x in range(len(model.loses_path[faculty]))]
+        fig = px.line(y=model.loses_path[faculty], x=x)
+        fig.update_layout(title=faculty, xaxis_title="Iteration", yaxis_title="Entropy")
+        fig.show()
+
+
+def plot_coefs():
+    for indx, faculty in enumerate(df['Hogwarts House'].unique()):
+        fig = go.Figure()
+        x = [x + 1 for x in range(len(model.loses_path[faculty]))]
+        for col in df.iloc[:, 1:7]:
+            fig.add_trace(go.Scatter(x=x, y=model.coeffs_path[faculty][col], mode='lines', name=col))
+        fig.update_layout(title=faculty, xaxis_title="Iteration", yaxis_title="Coefficient")
+        fig.show()
 
 
 if __name__ == '__main__':
@@ -100,4 +125,6 @@ if __name__ == '__main__':
     df = df[["Hogwarts House", "Divination", "Ancient Runes", "Herbology", "Charms", "Transfiguration"]]
     df['Constant'] = 1
     df.insert(df.columns.get_loc("Hogwarts House") + 1, "Constant", df.pop("Constant"))
-    logreg_train()
+    model = logreg_train()
+    plot_enthropy()
+    plot_coefs()
